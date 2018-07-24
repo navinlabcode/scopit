@@ -5,6 +5,9 @@ h2 {
 #sidebar {
   background-color: #EFF5F6;
 }
+#sidebar2 {
+  background-color: #EFF5F6;
+}
 
 input[type=text]:focus, textarea:focus {
   box-shadow: 0 0 0px #EE9A49;
