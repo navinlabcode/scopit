@@ -260,7 +260,7 @@ server <- function(input, output, session)
         numericInput(sprintf("clonefreq%d", i), ifelse(i==1, "Frequency of rarest type", "Frequency of additional types"),
                      ifelse(is.null(input[[sprintf("clonefreq%d",old[i])]]), current, input[[sprintf("clonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
         numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of types with the lowest frequency", "# of types with this frequency"), 1),
-        verticalLayout(actionButton(sprintf("minus%d", i), "-"))
+        if (i==1) {NULL} else {verticalLayout(actionButton(sprintf("minus%d", i), "-"))}
       )
     )
     
