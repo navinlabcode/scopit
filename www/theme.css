@@ -1,0 +1,16 @@
+h2 {
+  color: black;
+}
+
+#sidebar {
+  background-color: #EFF5F6;
+}
+
+input[type=text]:focus, textarea:focus {
+  box-shadow: 0 0 0px #EE9A49;
+  border: 1px solid #EE9A49;
+}
+input[type=number]:focus, textarea:focus {
+  box-shadow: 0 0 0px #EE9A49;
+  border: 1px solid #EE9A49;
+}
