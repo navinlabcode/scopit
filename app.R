@@ -98,7 +98,7 @@ path.plot.maker <- function(input, numeric.path, recnum, power, cutoff)
 
 # Basic settings, which will be part of both panels
 basic.settings <- verticalLayout(numericInput("cutoff", "Number of cells of each type which must be sequenced", 3),
-                             numericInput("power", "Required probability of sequencing this many cells from each type", .99,
+                             numericInput("power", "Required probability of sequencing this many cells from each type", .95,
                                           min=0, max=1, step=.01))
 # A clone of the basic settings, since Shiny doesn't support having the same element in two places
 basic.settings.2 <- verticalLayout(numericInput("cutoff2", "Number of cells of each type which must be sequenced", 3),
