@@ -304,10 +304,11 @@ server <- function(input, output, session)
       clone.indices <- 1:current.clones.2()
     }
     cancer.boxes <- lapply(clone.indices, function(i)
-      flowLayout(
+      splitLayout(
         numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed type %d", i),
                      ifelse(is.null(input[[sprintf("retroclonefreq%d",old[i])]]), current, input[[sprintf("retroclonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
-        verticalLayout(actionButton(sprintf("retrominus%d", i), "-"))
+        actionButton(sprintf("retrominus%d", i), "-"),
+        cellWidths=c("80%", "20%")
       )
     )
     
