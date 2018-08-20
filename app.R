@@ -10,25 +10,25 @@ source("backend.R")
 # Display the error messages that I give, not a generic error message
 options(shiny.sanitize.errors = FALSE)
 
-make.minus <- function(i, input, session, clone.to.remove, current.clones, prefix, clonefreqname)
+make.minus <- function(minus.number, clone.number, input, session, clone.to.remove, current.clones, prefix, clonefreqname)
 {
-  print(sprintf("Minus button %s%d listening for %s%d", prefix, i, clonefreqname, i))
-  observeEvent(input[[sprintf("%s%d", prefix, i)]], {
-    print(sprintf("Removing clone %d", i))
+  print(sprintf("Minus button %s%d listening for %s%d", prefix, minus.number, clonefreqname, clone.number))
+  observeEvent(input[[sprintf("%s%d", prefix, minus.number)]], {
+    print(sprintf("Removing clone %d", clone.number))
     # The clone frequencies draws input from boxes which are defined in clonefreq.boxes
     # Both those boxes and numeric.clonefreqs will respond to a change in the number of clones
     # When this reaction happens, it has to be recorded which has to be removed
-    clone.to.remove(i)
+    clone.to.remove(clone.number)
     # Decrement the number of clones
     old.value <- current.clones()
     print(sprintf("Currently there's %d clones", old.value))
     # Trying to put in a hack so that new clones will always have the last inputted frequency
     # If what you're minusing is the bottom clone, and its not the only clone,
     # set its frequency to the frequency of the previous clone before deleting
-    if (i == old.value & i > 1)
+    if (clone.number == old.value & clone.number > 1)
     {
-      prev.freq <- input[[sprintf("%s%d", clonefreqname, i-1)]]
-      this.id <- sprintf("%sfreq%d", clonefreqname, i)
+      prev.freq <- input[[sprintf("%s%d", clonefreqname, clone.number-1)]]
+      this.id <- sprintf("%s%d", clonefreqname, clone.number)
       # I have no idea why I have to make this reactive
       # But if I just put updateNumericInput here, it won't happen
       observeEvent(current.clones(), {
@@ -46,10 +46,10 @@ make.minus <- function(i, input, session, clone.to.remove, current.clones, prefi
 numeric.path.maker <- function(input, numeric.clonefreqs, current.clones, requested.point=NULL)
 {
   reactive({
-    if (any(numeric.clonefreqs() > 1)) stop("Type frequencies must be less than 1")
-    if (sum(numeric.clonefreqs()) > 1) stop("Total type frequency must be less than 1")
-    if (any(numeric.clonefreqs() < 0)) stop("Type frequencies cannot be negative")
-    if (current.clones() < 1) stop("Need at least one type")
+    if (any(numeric.clonefreqs() > 1)) stop("Subpopulation frequencies must be less than 1")
+    if (sum(numeric.clonefreqs()) > 1) stop("Total subpopulation frequency must be less than 1")
+    if (any(numeric.clonefreqs() < 0)) stop("Subpopulation frequencies cannot be negative")
+    if (current.clones() < 1) stop("Need at least one subpopulation")
     numeric.allfreqs <- c(numeric.clonefreqs(), 1 - sum(numeric.clonefreqs()))
     # You have to subtract 1 from the cutoff to get a maximum excluded
     all.cutoffs <- c(rep.int(input$cutoff-1, length(numeric.clonefreqs())), -1)
@@ -88,7 +88,7 @@ path.plot.maker <- function(input, numeric.path, recnum, power, cutoff)
     geom_hline(yintercept=input[[power]], colour="tan2", size=rel(1.3)) +
     geom_vline(xintercept=recnum(), colour="tan2", size=rel(1.3)) +
     xlab("Number of cells") +
-    ylab(sprintf("Probability of ≥%d of each type", input[[cutoff]])) +
+    ylab(sprintf("Probability of ≥%d of each subpopulation", input[[cutoff]])) +
     # ylim must be set very slightly below 0, so that 0 values with small
     # downward error will display
     ylim(-0.000001,1.000001) +
@@ -103,12 +103,12 @@ path.plot.maker <- function(input, numeric.path, recnum, power, cutoff)
 
 
 # Basic settings, which will be part of both panels
-basic.settings <- verticalLayout(numericInput("cutoff", "Number of cells of each type which must be sequenced", 3),
-                                 numericInput("power", "Required probability of sequencing this many cells from each type", .95,
+basic.settings <- verticalLayout(numericInput("cutoff", "Number of cells of each subpopulation which must be sequenced", 3),
+                                 numericInput("power", "Required probability of sequencing this many cells from each subpopulation", .95,
                                               min=0, max=1, step=.01))
 # A clone of the basic settings, since Shiny doesn't support having the same element in two places
-basic.settings.2 <- verticalLayout(numericInput("cutoff2", "Number of cells of each type which must be sequenced", 3),
-                                   numericInput("power2", "Required probability of sequencing this many cells from each type", .99,
+basic.settings.2 <- verticalLayout(numericInput("cutoff2", "Number of cells of each subpopulation which must be sequenced", 3),
+                                   numericInput("power2", "Required probability of sequencing this many cells from each subpopulation", .99,
                                                 min=0, max=1, step=.01))
 # This will require code that keeps them in sync
 ui <- fluidPage(
@@ -176,15 +176,28 @@ server <- function(input, output, session)
   current.clones <- reactiveVal(1)
   current.clones.2 <- reactiveVal(1)
   
+  # Number of clones ever created
+  clones.ever <- reactiveVal(1)
+  clones.ever.2 <- reactiveVal(1)
+  
   # Keep track of which clone to remove
   clone.to.remove <- reactiveVal(NA)
   clone.to.remove.2 <- reactiveVal(NA)
   
+  # Keep track of "display numbers"
+  # For each clone ever created, this its number in the current display, if any
+  # The plan is that I'm going to number minus buttons in order of creation, and
+  # display.numbers will tell them which clones to destroy
+  display.numbers <- reactiveValues()
+  display.numbers[["1"]] <- 1
+  display.numbers.2 <- reactiveValues()
+  display.numbers.2[["1"]] <- 1
+
   # Make an observer on the first minus button
-  make.minus(1, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
+  make.minus(1, 1, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
   
   # Same thing but for the second panel
-  make.minus(1, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
+  make.minus(1, 1, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
   
   # Respond to the plus button
   observeEvent(input$plus_button, {
@@ -192,7 +205,7 @@ server <- function(input, output, session)
     new.value <- old.value + 1
     current.clones(new.value)
     
-    make.minus(new.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
+    make.minus(new.value, new.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
   })
   
   # Respond to the plus button on the second page
@@ -201,7 +214,7 @@ server <- function(input, output, session)
     new.value <- old.value + 1
     current.clones.2(new.value)
     
-    make.minus(new.value, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
+    make.minus(new.value, new.value, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
   })
   
   # Retrieve clone frequencies for first panel
@@ -224,6 +237,7 @@ server <- function(input, output, session)
     }
   })
   
+  
   # Calculate the path. This was a bit much to copy and paste, so I made it a function.
   numeric.path <- numeric.path.maker(input, numeric.clonefreqs, current.clones)
   numeric.path.2 <- numeric.path.maker(input, numeric.clonefreqs.2, current.clones.2, "cells_sequenced")
@@ -238,7 +252,7 @@ server <- function(input, output, session)
   })
   
   output$path_plot <- renderPlot(path.plot.maker(input, numeric.path, recnum, "power", "cutoff"))
-  output$path_plot2 <- renderPlot(path.plot.maker(input, numeric.path.2, recnum.2, "power2", "cutoff2") + geom_vline(xintercept=input$cells_sequenced, colour="tomato2", size=rel(1.3)))
+  output$path_plot2 <- renderPlot(path.plot.maker(input, numeric.path.2, recnum.2, "power2", "cutoff2") + geom_vline(xintercept=input$cells_sequenced, lty="dashed",colour="darkseagreen3", size=rel(1.3)))
   
   clonefreq.boxes <- eventReactive(current.clones(), {
     # What is the "current" clone frequency--that is, the frequency of the bottom clone on the list?
@@ -265,9 +279,9 @@ server <- function(input, output, session)
     }
     cancer.boxes <- lapply(clone.indices, function(i)
       flowLayout(
-        numericInput(sprintf("clonefreq%d", i), ifelse(i==1, "Frequency of rarest type", "Frequency of additional types"),
+        numericInput(sprintf("clonefreq%d", i), ifelse(i==1, "Frequency of rarest subpopulation", "Frequency of additional subpopulations"),
                      ifelse(is.null(input[[sprintf("clonefreq%d",old[i])]]), current, input[[sprintf("clonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
-        numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of types with the lowest frequency", "# of types with this frequency"), 1),
+        numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of subpopulations with the lowest frequency", "# of subpopulations with this frequency"), 1),
         if (i==1) {NULL} else {verticalLayout(actionButton(sprintf("minus%d", i), "-"))}
       )
     )
@@ -305,7 +319,7 @@ server <- function(input, output, session)
     }
     cancer.boxes <- lapply(clone.indices, function(i)
       splitLayout(
-        numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed type %d", i),
+        numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed subpopulation %d", i),
                      ifelse(is.null(input[[sprintf("retroclonefreq%d",old[i])]]), current, input[[sprintf("retroclonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
         actionButton(sprintf("retrominus%d", i), "-"),
         cellWidths=c("80%", "20%")
