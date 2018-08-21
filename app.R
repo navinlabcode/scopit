@@ -200,16 +200,24 @@ server <- function(input, output, session)
   
   # Respond to the plus button
   observeEvent(input$plus_button, {
-    old.value <- current.clones()
-    new.value <- old.value + 1
-    current.clones(new.value)
+    old.cc.value <- current.clones()
+    new.cc.value <- old.cc.value + 1
+    current.clones(new.cc.value)
     
-    make.minus(new.value, new.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq", is.deleted)
+    old.ce.value <- clones.ever()
+    new.ce.value <- old.ce.value + 1
+    clones.ever(new.ce.value)
+    
+    is.deleted[[as.character(new.ce.value)]] <- FALSE
+    print(unlist(reactiveValuesToList(is.deleted)))
+    
+    make.minus(new.ce.value, new.ce.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq", is.deleted)
   })
   
   
   # Respond to the plus button on the second page
   observeEvent(input$plus_button2, {
+      
     old.cc.value <- current.clones.2()
     new.cc.value <- old.cc.value + 1
     current.clones.2(new.cc.value)
@@ -220,7 +228,7 @@ server <- function(input, output, session)
     
     is.deleted.2[[as.character(new.ce.value)]] <- FALSE
     print(unlist(reactiveValuesToList(is.deleted.2)))
-      
+    
     make.minus(new.ce.value, new.ce.value, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq", is.deleted.2)
   })
   
@@ -264,36 +272,27 @@ server <- function(input, output, session)
   output$path_plot2 <- renderPlot(path.plot.maker(input, numeric.path.2, recnum.2, "power2", "cutoff2") + geom_vline(xintercept=input$cells_sequenced, lty="dashed",colour="darkseagreen3", size=rel(1.3)))
   
   clonefreq.boxes <- eventReactive(current.clones(), {
+    
+    this.is.deleted <- reactiveValuesToList(is.deleted)
+    clone.indices <- as.integer(names(this.is.deleted)[!unlist(this.is.deleted)])
     # What is the "current" clone frequency--that is, the frequency of the bottom clone on the list?
-    clone.freqs <- lapply(1:current.clones(), function(i) input[[sprintf("clonefreq%d",i)]])
+    clone.freqs <- lapply(clone.indices, function(i) input[[sprintf("clonefreq%d",i)]])
     if (all(sapply(clone.freqs, is.null))) {
       current <- .01
     } else {
       current <- clone.freqs[[max(which(!sapply(clone.freqs, is.null)))]]
     }
     
-    # Make a mapping from new numbering to old numbering
-    this.clone.to.remove <- clone.to.remove()
-    if (is.na(this.clone.to.remove)) {
-      old <- 1:current.clones()
-    } else {
-      before.removal <- 1:(current.clones()+1)
-      old <- before.removal[-this.clone.to.remove]
-    }
     # Make the boxes that allow user input of clone frequencies
-    if (current.clones() == 0) {
-      clone.indices <- integer(0)
-    } else {
-      clone.indices <- 1:current.clones()
-    }
-    cancer.boxes <- lapply(clone.indices, function(i)
+    cancer.boxes <- lapply(1:length(clone.indices), function(display.num) {
+      i <- clone.indices[display.num]
       flowLayout(
         numericInput(sprintf("clonefreq%d", i), ifelse(i==1, "Frequency of rarest subpopulation", "Frequency of additional subpopulations"),
-                     ifelse(is.null(input[[sprintf("clonefreq%d",old[i])]]), current, input[[sprintf("clonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
+                     ifelse(is.null(input[[sprintf("clonefreq%d",i)]]), current, input[[sprintf("clonefreq%d",i)]]), min=0.01, max=1, step=.01),
         numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of subpopulations with the lowest frequency", "# of subpopulations with this frequency"), 1),
         if (i==1) {NULL} else {verticalLayout(actionButton(sprintf("minus%d", i), "-"))}
       )
-    )
+    })
     
     # Since the clone has already been removed, set clone.to.remove to NA
     clone.to.remove(NA)
@@ -307,7 +306,6 @@ server <- function(input, output, session)
     this.is.deleted <- reactiveValuesToList(is.deleted.2)
     clone.indices <- as.integer(names(this.is.deleted)[!unlist(this.is.deleted)])
     # What is the "current" clone frequency--that is, the frequency of the bottom clone on the list?
-    #clone.freqs <- lapply(1:current.clones.2(), function(i) input[[sprintf("retroclonefreq%d",i)]])
     clone.freqs <- lapply(clone.indices, function(i) input[[sprintf("retroclonefreq%d",i)]])
     if (all(sapply(clone.freqs, is.null))) {
       current <- .01
@@ -315,25 +313,11 @@ server <- function(input, output, session)
       current <- clone.freqs[[max(which(!sapply(clone.freqs, is.null)))]]
     }
     
-    ## Make a mapping from new numbering to old numbering
-    #this.clone.to.remove <- clone.to.remove.2()
-    #if (is.na(this.clone.to.remove)) {
-    #  old <- 1:current.clones.2()
-    #} else {
-    #  before.removal <- 1:(current.clones.2()+1)
-    #  old <- before.removal[-this.clone.to.remove]
-    #}
     # Make the boxes that allow user input of clone frequencies
-    #if (current.clones.2() == 0) {
-    #  clone.indices <- integer(0)
-    #} else {
-    #  clone.indices <- 1:current.clones.2()
-    #}
     cancer.boxes <- lapply(1:length(clone.indices), function(display.num) {
       i <- clone.indices[display.num]
       splitLayout(
         numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed subpopulation %d", i),
-                     #ifelse(is.null(input[[sprintf("retroclonefreq%d",old[i])]]), current, input[[sprintf("retroclonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
                      ifelse(is.null(input[[sprintf("retroclonefreq%d",i)]]), current, input[[sprintf("retroclonefreq%d",i)]]), min=0.01, max=1, step=.01),
         actionButton(sprintf("retrominus%d", i), "-"),
         cellWidths=c("80%", "20%")
