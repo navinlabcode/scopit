@@ -10,7 +10,7 @@ source("backend.R")
 # Display the error messages that I give, not a generic error message
 options(shiny.sanitize.errors = FALSE)
 
-make.minus <- function(minus.number, clone.number, input, session, clone.to.remove, current.clones, prefix, clonefreqname)
+make.minus <- function(minus.number, clone.number, input, session, clone.to.remove, current.clones, prefix, clonefreqname, is.deleted)
 {
   print(sprintf("Minus button %s%d listening for %s%d", prefix, minus.number, clonefreqname, clone.number))
   observeEvent(input[[sprintf("%s%d", prefix, minus.number)]], {
@@ -25,19 +25,21 @@ make.minus <- function(minus.number, clone.number, input, session, clone.to.remo
     # Trying to put in a hack so that new clones will always have the last inputted frequency
     # If what you're minusing is the bottom clone, and its not the only clone,
     # set its frequency to the frequency of the previous clone before deleting
-    if (clone.number == old.value & clone.number > 1)
-    {
-      prev.freq <- input[[sprintf("%s%d", clonefreqname, clone.number-1)]]
-      this.id <- sprintf("%s%d", clonefreqname, clone.number)
-      # I have no idea why I have to make this reactive
-      # But if I just put updateNumericInput here, it won't happen
-      observeEvent(current.clones(), {
-        print(sprintf('Resetting clone "%s" frequency to %f', this.id, prev.freq))
-        updateNumericInput(session, this.id, value=prev.freq)
-      }, once=TRUE, ignoreInit=TRUE)
-    }
+    #if (clone.number == old.value & clone.number > 1)
+    #{
+    #  prev.freq <- input[[sprintf("%s%d", clonefreqname, clone.number-1)]]
+    #  this.id <- sprintf("%s%d", clonefreqname, clone.number)
+    #  # I have no idea why I have to make this reactive
+    #  # But if I just put updateNumericInput here, it won't happen
+    #  observeEvent(current.clones(), {
+    #    print(sprintf('Resetting clone "%s" frequency to %f', this.id, prev.freq))
+    #    updateNumericInput(session, this.id, value=prev.freq)
+    #  }, once=TRUE, ignoreInit=TRUE)
+    #}
     current.clones(old.value-1)
     print(sprintf("Now there's %d", current.clones()))
+    is.deleted[[as.character(clone.number)]] <- TRUE
+    print(unlist(reactiveValuesToList(is.deleted)))
   }, once=TRUE, ignoreInit=TRUE)
 }
 
@@ -184,20 +186,17 @@ server <- function(input, output, session)
   clone.to.remove <- reactiveVal(NA)
   clone.to.remove.2 <- reactiveVal(NA)
   
-  # Keep track of "display numbers"
-  # For each clone ever created, this its number in the current display, if any
-  # The plan is that I'm going to number minus buttons in order of creation, and
-  # display.numbers will tell them which clones to destroy
-  display.numbers <- reactiveValues()
-  display.numbers[["1"]] <- 1
-  display.numbers.2 <- reactiveValues()
-  display.numbers.2[["1"]] <- 1
-
+  # Lists keeping track of what's been deleted
+  is.deleted <- reactiveValues()
+  is.deleted[["1"]] <- FALSE
+  is.deleted.2 <- reactiveValues()
+  is.deleted.2[["1"]] <- FALSE
+  
   # Make an observer on the first minus button
-  make.minus(1, 1, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
+  make.minus(1, 1, input, session, clone.to.remove, current.clones, "minus", "clonefreq", is.deleted)
   
   # Same thing but for the second panel
-  make.minus(1, 1, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
+  make.minus(1, 1, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq", is.deleted.2)
   
   # Respond to the plus button
   observeEvent(input$plus_button, {
@@ -205,16 +204,24 @@ server <- function(input, output, session)
     new.value <- old.value + 1
     current.clones(new.value)
     
-    make.minus(new.value, new.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq")
+    make.minus(new.value, new.value, input, session, clone.to.remove, current.clones, "minus", "clonefreq", is.deleted)
   })
+  
   
   # Respond to the plus button on the second page
   observeEvent(input$plus_button2, {
-    old.value <- current.clones.2()
-    new.value <- old.value + 1
-    current.clones.2(new.value)
+    old.cc.value <- current.clones.2()
+    new.cc.value <- old.cc.value + 1
+    current.clones.2(new.cc.value)
     
-    make.minus(new.value, new.value, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq")
+    old.ce.value <- clones.ever.2()
+    new.ce.value <- old.ce.value + 1
+    clones.ever.2(new.ce.value)
+    
+    is.deleted.2[[as.character(new.ce.value)]] <- FALSE
+    print(unlist(reactiveValuesToList(is.deleted.2)))
+      
+    make.minus(new.ce.value, new.ce.value, input, session, clone.to.remove.2, current.clones.2, "retrominus", "retroclonefreq", is.deleted.2)
   })
   
   # Retrieve clone frequencies for first panel
@@ -229,7 +236,9 @@ server <- function(input, output, session)
   })
   # Same thing for the second panel. Don't need clone counts for this though, so it's a little different
   numeric.clonefreqs.2 <- reactive({
-    these.clonefreqs <- sapply(1:current.clones.2(), function(i) input[[sprintf("retroclonefreq%d",i)]])
+    this.is.deleted <- reactiveValuesToList(is.deleted.2)
+    clone.indices <- as.integer(names(this.is.deleted)[!unlist(this.is.deleted)])
+    these.clonefreqs <- sapply(clone.indices, function(i) input[[sprintf("retroclonefreq%d",i)]])
     if (any(sapply(these.clonefreqs, is.null))) {
       NULL
     } else {
@@ -295,36 +304,41 @@ server <- function(input, output, session)
   
   
   clonefreq.boxes.2 <- eventReactive(current.clones.2(), {
+    this.is.deleted <- reactiveValuesToList(is.deleted.2)
+    clone.indices <- as.integer(names(this.is.deleted)[!unlist(this.is.deleted)])
     # What is the "current" clone frequency--that is, the frequency of the bottom clone on the list?
-    clone.freqs <- lapply(1:current.clones.2(), function(i) input[[sprintf("retroclonefreq%d",i)]])
+    #clone.freqs <- lapply(1:current.clones.2(), function(i) input[[sprintf("retroclonefreq%d",i)]])
+    clone.freqs <- lapply(clone.indices, function(i) input[[sprintf("retroclonefreq%d",i)]])
     if (all(sapply(clone.freqs, is.null))) {
       current <- .01
     } else {
       current <- clone.freqs[[max(which(!sapply(clone.freqs, is.null)))]]
     }
     
-    # Make a mapping from new numbering to old numbering
-    this.clone.to.remove <- clone.to.remove.2()
-    if (is.na(this.clone.to.remove)) {
-      old <- 1:current.clones.2()
-    } else {
-      before.removal <- 1:(current.clones.2()+1)
-      old <- before.removal[-this.clone.to.remove]
-    }
+    ## Make a mapping from new numbering to old numbering
+    #this.clone.to.remove <- clone.to.remove.2()
+    #if (is.na(this.clone.to.remove)) {
+    #  old <- 1:current.clones.2()
+    #} else {
+    #  before.removal <- 1:(current.clones.2()+1)
+    #  old <- before.removal[-this.clone.to.remove]
+    #}
     # Make the boxes that allow user input of clone frequencies
-    if (current.clones.2() == 0) {
-      clone.indices <- integer(0)
-    } else {
-      clone.indices <- 1:current.clones.2()
-    }
-    cancer.boxes <- lapply(clone.indices, function(i)
+    #if (current.clones.2() == 0) {
+    #  clone.indices <- integer(0)
+    #} else {
+    #  clone.indices <- 1:current.clones.2()
+    #}
+    cancer.boxes <- lapply(1:length(clone.indices), function(display.num) {
+      i <- clone.indices[display.num]
       splitLayout(
         numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed subpopulation %d", i),
-                     ifelse(is.null(input[[sprintf("retroclonefreq%d",old[i])]]), current, input[[sprintf("retroclonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
+                     #ifelse(is.null(input[[sprintf("retroclonefreq%d",old[i])]]), current, input[[sprintf("retroclonefreq%d",old[i])]]), min=0.01, max=1, step=.01),
+                     ifelse(is.null(input[[sprintf("retroclonefreq%d",i)]]), current, input[[sprintf("retroclonefreq%d",i)]]), min=0.01, max=1, step=.01),
         actionButton(sprintf("retrominus%d", i), "-"),
         cellWidths=c("80%", "20%")
       )
-    )
+    })
     
     # Since the clone has already been removed, set clone.to.remove to NA
     clone.to.remove.2(NA)
