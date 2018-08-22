@@ -317,7 +317,7 @@ server <- function(input, output, session)
     cancer.boxes <- lapply(1:length(clone.indices), function(display.num) {
       i <- clone.indices[display.num]
       splitLayout(
-        numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed subpopulation %d", i),
+        numericInput(sprintf("retroclonefreq%d", i), sprintf("Observed subpopulation %d", display.num),
                      ifelse(is.null(input[[sprintf("retroclonefreq%d",i)]]), current, input[[sprintf("retroclonefreq%d",i)]]), min=0.01, max=1, step=.01),
         actionButton(sprintf("retrominus%d", i), "-"),
         cellWidths=c("80%", "20%")
