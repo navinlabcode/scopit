@@ -289,7 +289,9 @@ server <- function(input, output, session)
       flowLayout(
         numericInput(sprintf("clonefreq%d", i), ifelse(i==1, "Frequency of rarest subpopulation", "Frequency of additional subpopulations"),
                      ifelse(is.null(input[[sprintf("clonefreq%d",i)]]), current, input[[sprintf("clonefreq%d",i)]]), min=0.01, max=1, step=.01),
-        numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of subpopulations with the lowest frequency", "# of subpopulations with this frequency"), 1),
+#        numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of subpopulations with the lowest frequency", "# of subpopulations with this frequency"), 1),
+        numericInput(sprintf("clonecount%d", i), ifelse(i==1, "# of subpopulations with the lowest frequency", "# of subpopulations with this frequency"), 
+                     ifelse(is.null(input[[sprintf("clonecount%d",i)]]), 1, input[[sprintf("clonecount%d",i)]]), min=0, step=1),
         if (i==1) {NULL} else {verticalLayout(actionButton(sprintf("minus%d", i), "-"))}
       )
     })
