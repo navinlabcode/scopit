@@ -1,0 +1,36 @@
+### What is this tool for?
+
+This tool is for estimating the number of cells that must be sequenced to observe cell types in a single-cell sequencing experiment. It is intended for rough 'napkin calculations', since it is uses information about type frequencies that an experimenter typically will not know.
+
+### Is it for single-cell DNA sequencing, or single-cell RNA sequencing?
+
+Either.
+
+### What counts as a cell type?
+
+Any cell population can be considered a "type" for this purpose. While this will often be a cell type, in cancer research it will often be a subclone of a tumor.
+
+### How many cells do I want to sequence from each population?
+
+If the types are determined by clustering, it should be at least as much as the smallest cluster the analysis can detect. If the types are determined _a priori_ then it is the number of cells required to answer the scientific question.
+
+### What should I set the probability to?
+
+Since this is the probability that a very expensive experiment meets its stated goals, a high value like 99% seems reasonable. However, achieving probabilities like 99% takes far more cells than achieving more moderate probabilities like 80%. As a compromise, 95% is the default value, but experimenting with different probabilities is wise.
+
+### Why are there two tabs, "Retrospective" and "Prospective"?
+
+The "retrospective" tab is intended for planning an experiment, when no information about type frequencies is available. The "prospective" tab is intended for evaluating an already performed experiment, and entering the observed type frequencies. The two tabs perform the same probability calculations. Only the interface and the labeling are different.
+
+### What should I enter as the frequency of the rarest subpopulation?
+Since you probably do not have this information, you should try entering multiple values, and observe their consequences.
+
+### Why is it only asking for the rarest type?
+Only the rarest type affects the result, along with types very close to it in frequency. For example, if there are two cell types with frequencies of 1%, finding both of them requires a larger experiment than finding just one of them. But if one cell type has a frequency of 1% and the other with 3%, then any experiment large enough to find the rare one will certainly find the more common one as well.
+
+### What if a cell type has frequency similar to the rarest, but not exactly the same? Will it affect the calculation?
+The best way to find out is to use the plus button to add an additional type, and try this out for yourself.
+
+### Is the answer an approximation, or a lower bound?
+Neither. It is exact, or at least as exact as any other floating-point calculation on a computer.
+
